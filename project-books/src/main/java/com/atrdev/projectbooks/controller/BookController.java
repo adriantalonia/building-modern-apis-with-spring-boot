@@ -1,8 +1,13 @@
 package com.atrdev.projectbooks.controller;
 
-import com.atrdev.projectbooks.model.dto.BookRequest;
+import com.atrdev.projectbooks.model.dto.request.BookRequest;
 import com.atrdev.projectbooks.model.entity.Book;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -11,11 +16,13 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
 import java.util.List;
 
+@Tag(name = "Books Rest API", description = "Operations related to books")
 @RestController
 @RequestMapping("/api/books")
 public class BookController {
@@ -37,23 +44,49 @@ public class BookController {
         ));
     }
 
+    @Operation(summary = "Get all books", description = "Retrieve a list of all available books")
+    @ResponseStatus(HttpStatus.OK)
+    @GetMapping
+    public List<Book> getBooksByCategory(@Parameter(description = "Optional query parameter") @RequestParam(required = false) String category) {
+        if (category == null) {
+            return books;
+        }
+
+        /*List<Book> filteredBooks = new ArrayList<>();
+        for (Book book : books) {
+            if (book.getCategory().equalsIgnoreCase(category)) {
+                filteredBooks.add(book);
+            }
+        }
+        return filteredBooks;*/
+        return books.stream()
+                .filter(book -> book.getCategory().equalsIgnoreCase(category))
+                .toList();
+    }
+
+    @Operation(summary = "Get book by id", description = "Retrieve a book by its id")
+    @ResponseStatus(HttpStatus.OK)
     @GetMapping("/{id}")
-    public Book getBookById(@PathVariable @Min(value = 1) long id) {
+    public Book getBookById(@Parameter(description = "Id of book to be retrieved", required = true) @PathVariable @Min(value = 1) long id) {
         return books.stream()
                 .filter(book -> book.getId() == id)
                 .findFirst()
                 .orElse(null);
     }
 
+    @Operation(summary = "Create a new book", description = "Create a new book")
+    @ResponseStatus(code = HttpStatus.CREATED)
     @PostMapping
-    public boolean addBook(@RequestBody BookRequest bookRequest) {
+    public boolean createBook(@Valid @RequestBody BookRequest bookRequest) {
         long id = books.isEmpty() ? 1 : books.getLast().getId() + 1;
         Book book = convertToBook(bookRequest, id);
         return books.add(book);
     }
 
+    @Operation(summary = "Update a book", description = "Update a book")
+    @ResponseStatus(HttpStatus.OK)
     @PutMapping("/{id}")
-    public boolean updateBook(@PathVariable @Min(value = 1) long id, @RequestBody BookRequest bookRequest) {
+    public boolean updateBook(@Parameter(description = "Id of book to update", required = true) @PathVariable @Min(value = 1) long id, @RequestBody BookRequest bookRequest) {
         for (int i = 0; i < books.size(); i++) {
             if (books.get(i).getId() == id) {
                 Book book = convertToBook(bookRequest, id);
@@ -64,8 +97,10 @@ public class BookController {
         return false;
     }
 
+    @Operation(summary = "Delete a book", description = "Delete a book")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     @DeleteMapping("/{id}")
-    public boolean deleteBook(@PathVariable @Min(value = 1) long id) {
+    public boolean deleteBook(@Parameter(description = "Id of the book to delete", required = true) @PathVariable @Min(value = 1) long id) {
         return books.removeIf(book -> book.getId() == id);
     }
 
@@ -138,23 +173,6 @@ public class BookController {
 
 
 
-    @GetMapping
-    public List<Book> getBooksByCategory(@RequestParam(required = false) String category) {
-        if (category == null) {
-            return books;
-        }
-
-        /*List<Book> filteredBooks = new ArrayList<>();
-        for (Book book : books) {
-            if (book.getCategory().equalsIgnoreCase(category)) {
-                filteredBooks.add(book);
-            }
-        }
-        return filteredBooks;*/
-        return books.stream()
-                .filter(book -> book.getCategory().equalsIgnoreCase(category))
-                .toList();
-    }
 
     /*@PostMapping
     public boolean addBook(@RequestBody Book book) {
