@@ -1,6 +1,8 @@
 package com.atrdev.projectbooks.controller;
 
+import com.atrdev.projectbooks.exception.BookNotFoundException;
 import com.atrdev.projectbooks.model.dto.request.BookRequest;
+import com.atrdev.projectbooks.model.dto.response.BookErrorResponse;
 import com.atrdev.projectbooks.model.entity.Book;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -8,7 +10,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -71,7 +75,7 @@ public class BookController {
         return books.stream()
                 .filter(book -> book.getId() == id)
                 .findFirst()
-                .orElse(null);
+                .orElseThrow(() -> new BookNotFoundException("Book with id " + id + " not found"));
     }
 
     @Operation(summary = "Create a new book", description = "Create a new book")
@@ -86,21 +90,25 @@ public class BookController {
     @Operation(summary = "Update a book", description = "Update a book")
     @ResponseStatus(HttpStatus.OK)
     @PutMapping("/{id}")
-    public boolean updateBook(@Parameter(description = "Id of book to update", required = true) @PathVariable @Min(value = 1) long id, @RequestBody BookRequest bookRequest) {
+    public Book updateBook(@Parameter(description = "Id of book to update", required = true) @PathVariable @Min(value = 1) long id, @RequestBody BookRequest bookRequest) {
         for (int i = 0; i < books.size(); i++) {
             if (books.get(i).getId() == id) {
                 Book book = convertToBook(bookRequest, id);
                 books.set(i, book);
-                return true;
+                return book;
             }
         }
-        return false;
+        throw new BookNotFoundException("Book with id " + id + " not found");
     }
 
     @Operation(summary = "Delete a book", description = "Delete a book")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @DeleteMapping("/{id}")
     public boolean deleteBook(@Parameter(description = "Id of the book to delete", required = true) @PathVariable @Min(value = 1) long id) {
+        books.stream()
+                .filter(book -> book.getId() == id)
+                .findFirst()
+                .orElseThrow(() -> new BookNotFoundException("Book with id " + id + " not found"));
         return books.removeIf(book -> book.getId() == id);
     }
 
