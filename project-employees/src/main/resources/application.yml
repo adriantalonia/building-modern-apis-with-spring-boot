@@ -16,8 +16,18 @@ spring:
       enabled: true
       path: /h2-console
 
+# security config
+  security:
+    user:
+      name: user
+      password: 1q2w3e4r5t
+
+# swagger config
 springdoc:
   swagger-ui.path: /docs
+
+
+
 
 
 
