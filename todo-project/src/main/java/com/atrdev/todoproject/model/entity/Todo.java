@@ -2,9 +2,12 @@ package com.atrdev.todoproject.model.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 @Entity
@@ -25,19 +28,20 @@ public class Todo {
     private boolean complete;
 
     // private User owner
-
-    // Default constructor (required by JPA)
-
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_id")
+    private User owner;
 
     public Todo() {
     }
 
-    public Todo(long id, String title, String description, int priority, boolean complete) {
+    public Todo(long id, String title, String description, int priority, boolean complete, User owner) {
         this.id = id;
         this.title = title;
         this.description = description;
         this.priority = priority;
         this.complete = complete;
+        this.owner = owner;
     }
 
     public long getId() {
@@ -78,5 +82,13 @@ public class Todo {
 
     public void setComplete(boolean complete) {
         this.complete = complete;
+    }
+
+    public User getOwner() {
+        return owner;
+    }
+
+    public void setOwner(User owner) {
+        this.owner = owner;
     }
 }
