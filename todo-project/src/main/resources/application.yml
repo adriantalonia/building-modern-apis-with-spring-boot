@@ -13,7 +13,7 @@ spring:
       ddl-auto: update
     open-in-view: false
   jwt:
-    secret: q12was27yd783qfheawudh3982aeyhkujwH0983Q2498A2RFHUKSEHEDY9713YHDSIUWYE71HSKUJHGSukiA
+    secret: ${SECRET}
     expiration: 900000
 springdoc:
   swagger-ui:
