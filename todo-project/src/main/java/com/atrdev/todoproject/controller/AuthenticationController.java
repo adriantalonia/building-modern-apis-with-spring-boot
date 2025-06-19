@@ -1,6 +1,8 @@
 package com.atrdev.todoproject.controller;
 
+import com.atrdev.todoproject.model.dto.request.AuthenticationRequest;
 import com.atrdev.todoproject.model.dto.request.RegisterRequest;
+import com.atrdev.todoproject.model.dto.response.AuthenticationResponse;
 import com.atrdev.todoproject.model.dto.response.RegisterResponse;
 import com.atrdev.todoproject.service.AuthenticationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -30,5 +32,13 @@ public class AuthenticationController {
     public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest registerRequest) throws Exception {
         RegisterResponse response = authenticationService.register(registerRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @Operation(summary = "Login user", description = "Submit email & password to authenticate user")
+    @ResponseStatus(HttpStatus.OK)
+    @PostMapping("/login")
+    public ResponseEntity<AuthenticationResponse> login(@Valid @RequestBody AuthenticationRequest authRequest) throws Exception {
+        AuthenticationResponse response = authenticationService.login(authRequest);
+        return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 }
