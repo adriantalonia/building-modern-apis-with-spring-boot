@@ -5,4 +5,5 @@ import com.atrdev.todoproject.model.entity.User;
 
 public interface UserService {
     UserResponse getUserInfo();
+    void deleteUser();
 }

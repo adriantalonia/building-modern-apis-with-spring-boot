@@ -3,14 +3,23 @@ package com.atrdev.todoproject.service;
 import com.atrdev.todoproject.model.dto.response.UserResponse;
 import com.atrdev.todoproject.model.entity.Authority;
 import com.atrdev.todoproject.model.entity.User;
+import com.atrdev.todoproject.repository.UserRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class UserServiceImpl implements UserService {
+
+    private final UserRepository userRepository;
+
+    public UserServiceImpl(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
     /**
      * Retrieves information about the currently authenticated user.
      *
@@ -34,6 +43,29 @@ public class UserServiceImpl implements UserService {
                 user.getEmail(),
                 user.getAuthorities().stream().map(auth -> (Authority) auth).toList()
         );
+    }
+
+    @Override
+    public void deleteUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (isAuthenticationInvalid(authentication)) {
+            throw new AccessDeniedException("Authentication required");
+        }
+        User user = extractAuthenticatedUser(authentication);
+        if (isLastAdmin(user)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin cannot delete itself");
+        }
+        userRepository.delete(user);
+    }
+
+    private boolean isLastAdmin(User user) {
+        boolean isAdmin = user.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
+        if (isAdmin) {
+            long adminCount = userRepository.countAdminUsers();
+            return adminCount <= 1;
+        }
+        return false;
     }
 
     /**
