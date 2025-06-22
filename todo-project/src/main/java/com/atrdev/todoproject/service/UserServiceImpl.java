@@ -1,13 +1,13 @@
 package com.atrdev.todoproject.service;
 
+import com.atrdev.todoproject.model.dto.request.PasswordUpdateRequest;
 import com.atrdev.todoproject.model.dto.response.UserResponse;
 import com.atrdev.todoproject.model.entity.Authority;
 import com.atrdev.todoproject.model.entity.User;
 import com.atrdev.todoproject.repository.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -16,10 +16,15 @@ import org.springframework.web.server.ResponseStatusException;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final FindAuthenticatedUser findAuthenticatedUser;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserServiceImpl(UserRepository userRepository) {
+    public UserServiceImpl(UserRepository userRepository, FindAuthenticatedUser findAuthenticatedUser, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.findAuthenticatedUser = findAuthenticatedUser;
+        this.passwordEncoder = passwordEncoder;
     }
+
     /**
      * Retrieves information about the currently authenticated user.
      *
@@ -29,14 +34,8 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public UserResponse getUserInfo() {
-        // Get the current authentication context from Spring Security
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        // Validate the authentication state
-        if (isAuthenticationInvalid(authentication)) {
-            throw new AccessDeniedException("Authentication required");
-        }
         // The principal should be our custom User object at this point
-        User user = extractAuthenticatedUser(authentication);
+        User user = findAuthenticatedUser.getAuthenticatedUser();
         return new UserResponse(
                 user.getId(),
                 user.getFirstName() + " " + user.getLastName(),
@@ -47,15 +46,33 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void deleteUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (isAuthenticationInvalid(authentication)) {
-            throw new AccessDeniedException("Authentication required");
-        }
-        User user = extractAuthenticatedUser(authentication);
+        User user = findAuthenticatedUser.getAuthenticatedUser();
         if (isLastAdmin(user)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin cannot delete itself");
         }
         userRepository.delete(user);
+    }
+
+    @Override
+    public void updatePassword(PasswordUpdateRequest passwordUpdateRequest) {
+        User user = findAuthenticatedUser.getAuthenticatedUser();
+
+        if (!isOldPasswordCorrect(user.getPassword(), passwordUpdateRequest.getOldPassword())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Current password is incorrect");
+        }
+
+        if (!isNewPasswordConfirmed(passwordUpdateRequest.getNewPassword(),
+                passwordUpdateRequest.getNewPassword2())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "New passwords do not match");
+        }
+
+        if (!isNewPasswordDifferent(passwordUpdateRequest.getOldPassword(),
+                passwordUpdateRequest.getNewPassword())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Old and new passwords must be different");
+        }
+
+        user.setPassword(passwordEncoder.encode(passwordUpdateRequest.getNewPassword()));
+        userRepository.save(user);
     }
 
     private boolean isLastAdmin(User user) {
@@ -68,40 +85,15 @@ public class UserServiceImpl implements UserService {
         return false;
     }
 
-    /**
-     * Checks if the authentication is invalid or represents an anonymous user
-     *
-     * @param authentication the authentication object to validate
-     * @return true if authentication is invalid, false otherwise
-     */
-    private boolean isAuthenticationInvalid(Authentication authentication) {
-        return authentication == null ||
-                !authentication.isAuthenticated() ||
-                isAnonymousUser(authentication);
+    private boolean isOldPasswordCorrect(String currentPassword, String oldPassword) {
+        return passwordEncoder.matches(oldPassword, currentPassword);
     }
 
-    /**
-     * Determines if the authentication represents an anonymous/unauthenticated user
-     *
-     * @param authentication the authentication object to check
-     * @return true if the user is anonymous, false otherwise
-     */
-    private boolean isAnonymousUser(Authentication authentication) {
-        return "anonymousUser".equals(authentication.getPrincipal());
+    private boolean isNewPasswordConfirmed(String newPassword, String newPasswordConfirmation) {
+        return newPassword.equals(newPasswordConfirmation);
     }
 
-    /**
-     * Extracts the User object from the authentication principal
-     *
-     * @param authentication the validated authentication object
-     * @return the User principal
-     * @throws ClassCastException if principal is not of expected User type
-     */
-    private User extractAuthenticatedUser(Authentication authentication) {
-        try {
-            return (User) authentication.getPrincipal();
-        } catch (ClassCastException e) {
-            throw new AccessDeniedException("Invalid user principal type", e);
-        }
+    private boolean isNewPasswordDifferent(String oldPassword, String newPassword) {
+        return !oldPassword.equals(newPassword);
     }
 }
