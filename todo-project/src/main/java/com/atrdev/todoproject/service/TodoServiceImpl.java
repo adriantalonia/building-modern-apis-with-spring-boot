@@ -5,10 +5,13 @@ import com.atrdev.todoproject.model.dto.response.TodoResponse;
 import com.atrdev.todoproject.model.entity.Todo;
 import com.atrdev.todoproject.model.entity.User;
 import com.atrdev.todoproject.repository.TodoRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class TodoServiceImpl implements TodoService {
@@ -51,6 +54,28 @@ public class TodoServiceImpl implements TodoService {
                 .stream()
                 .map(this::convertToTodoResponse)
                 .toList();
+    }
+
+    @Override
+    public TodoResponse toggleTodoComplete(long id) {
+        User currentUser = findAuthenticatedUser.getAuthenticatedUser();
+        Optional<Todo> todo = todoRepository.findByIdAndOwner(id, currentUser);
+        if (todo.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Todo not found");
+        }
+        todo.get().setComplete(!todo.get().isComplete());
+        Todo updatedTodo = todoRepository.save(todo.get());
+        return convertToTodoResponse(updatedTodo);
+    }
+
+    @Override
+    public void deleteTodo(long id) {
+        User currentUser = findAuthenticatedUser.getAuthenticatedUser();
+        Optional<Todo> todo = todoRepository.findByIdAndOwner(id, currentUser);
+        if (todo.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Todo not found");
+        }
+        todoRepository.delete(todo.get());
     }
 
     private TodoResponse convertToTodoResponse(Todo todo) {
